@@ -1,0 +1,25 @@
+{
+  "name": "node_degree",
+  "implementation_id": "node_degree.EE23B022",
+  "author": "EE23B022",
+  "tier": "bootcamp",
+  "category": "structure",
+  "description": "Calculates how many edges touch a node. Use it to answer node connection and degree questions. For an undirected graph it returns the node id, label, and degree. For a directed graph it returns the node id, label, outgoing degree, incoming degree, and total degree.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "graph_id": {
+        "type": "string",
+        "description": "Id of the graph to analyse."
+      },
+      "node": {
+        "type": "string",
+        "description": "The node id whose connections should be counted. Use lookup_node to find the id."
+      }
+    },
+    "required": ["graph_id", "node"]
+  },
+  "examples": [
+    {"graph_id": "airports", "node": "MAA"}
+  ]
+}
