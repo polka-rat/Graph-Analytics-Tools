@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from graphkit import GraphStore, load_tool  # noqa: E402
+from graphkit.contract import error  # noqa: E402
 from graphkit.llm import make_client, model_name, tool_schema  # noqa: E402
 from graphkit.trace import Trace  # noqa: E402
 
@@ -53,14 +54,74 @@ def answer(question: str, client, tools: dict, store: GraphStore, trace: Trace) 
     schemas = [tool_schema(t.manifest) for t in tools.values()]
     trace.question(question)
 
-    # TODO: Implement the agent loop (bounded by MAX_STEPS).
-    #
-    # Iteratively call the model with conversation history and tool schemas, logging each call.
-    # Return the final response if no tool calls are requested.
-    # Execute requested tools against the graph store, handle errors, log executions,
-    # and append tool outputs to the conversation for the next iteration.
-    # Handle malformed arguments, unknown tools, and MAX_STEPS limits gracefully.
-    raise NotImplementedError("Implement the agent loop in answer() in bootcamp/bootcamp_agent.py")
+    for _ in range(MAX_STEPS):
+        response = client.chat.completions.create(
+            model=model_name(),
+            messages=messages,
+            tools=schemas,
+        )
+        message = response.choices[0].message
+        trace.llm_call(model_name(), message)
+
+        tool_calls = message.tool_calls or []
+        if not tool_calls:
+            text = message.content or "The model did not provide an answer."
+            trace.final_answer(text)
+            return text
+
+        if hasattr(message, "model_dump"):
+            # Preserve provider-specific fields such as Gemini's
+            # thought_signature when continuing the tool-call conversation.
+            assistant_message = message.model_dump(exclude_none=True)
+        else:
+            assistant_message = {
+                "role": "assistant",
+                "content": message.content or "",
+                "tool_calls": [
+                    {
+                        "id": call.id,
+                        "type": "function",
+                        "function": {
+                            "name": call.function.name,
+                            "arguments": call.function.arguments,
+                        },
+                    }
+                    for call in tool_calls
+                ],
+            }
+        messages.append(assistant_message)
+
+        for call in tool_calls:
+            tool_name = call.function.name
+            raw_arguments = call.function.arguments
+            arguments = {}
+            try:
+                arguments = json.loads(raw_arguments)
+                if not isinstance(arguments, dict):
+                    raise ValueError("arguments must be a JSON object")
+            except (json.JSONDecodeError, TypeError, ValueError) as exc:
+                output = error(f"Malformed arguments for tool '{tool_name}': {exc}.")
+            else:
+                if tool_name not in tools:
+                    output = error(
+                        f"Unknown tool '{tool_name}'. Available tools: {', '.join(tools)}."
+                    )
+                else:
+                    try:
+                        output = tools[tool_name].run(store, **arguments)
+                    except (TypeError, ValueError, KeyError) as exc:
+                        output = error(f"Tool '{tool_name}' could not be called: {exc}.")
+
+            trace.tool_call(tool_name, arguments, output)
+            messages.append({
+                "role": "tool",
+                "tool_call_id": call.id,
+                "content": json.dumps(output),
+            })
+
+    text = f"I could not finish the analysis within the {MAX_STEPS}-step tool limit."
+    trace.final_answer(text)
+    return text
 
 
 def main() -> None:
