@@ -1,15 +1,15 @@
 {
-  "name": "TODO_tool_name_from_the_menu",
-  "implementation_id": "TODO_tool_name.YOUR_ID",
-  "author": "YOUR_ID",
-  "tier": "TODO easy | medium | hard",
-  "category": "TODO paths | centrality | community | structure | subgraph",
-  "description": "TODO: What does the tool compute? Which questions should an LLM use it for? Which graphs does it work on (directed, undirected, weighted)? What does it return?",
+  "name": "articulation_points_bridges",
+  "implementation_id": "articulation_points_bridges.EE23B022",
+  "author": "EE23B022",
+  "tier": "medium",
+  "category": "structure",
+  "description": "Finds articulation points (nodes) and bridges (edges) disconnects the graph. It answers network-resilience questions. It supports directed and undirected graphs, treating directed edges as undirected for this structural analysis, and returns deterministic node and edge references.",
   "parameters": {
     "type": "object",
     "properties": {
-      "graph_id": {"type": "string", "description": "Id of the graph to analyse."},
-      "top_k": {"type": "integer", "description": "How many top results to return.", "default": 10, "minimum": 1, "maximum": 100}
+      "graph_id": {"type": "string", "description": "ID of the graph to analyse."},
+      "top_k": {"type": "integer", "description": "Maximum number of articulation points and bridges to return for each result list.", "default": 10, "minimum": 1, "maximum": 100}
     },
     "required": ["graph_id"]
   },
